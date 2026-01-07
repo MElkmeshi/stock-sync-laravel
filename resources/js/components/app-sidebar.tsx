@@ -10,10 +10,10 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard, mappings, settingsPage, logs } from '@/routes';
+import { dashboard, mappings, marketProducts, settingsPage, logs } from '@/routes';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { LayoutGrid, GitCompare, Settings, FileText } from 'lucide-react';
+import { LayoutGrid, GitCompare, ImageIcon, Settings, FileText } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -26,6 +26,11 @@ const mainNavItems: NavItem[] = [
         title: 'Mappings',
         href: mappings(),
         icon: GitCompare,
+    },
+    {
+        title: 'Product Images',
+        href: marketProducts(),
+        icon: ImageIcon,
     },
     {
         title: 'Settings',

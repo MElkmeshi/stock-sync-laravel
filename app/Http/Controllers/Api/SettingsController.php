@@ -20,6 +20,8 @@ class SettingsController extends Controller
             'db_password' => Setting::get('db_password', 'MyStr0ngP@ssw0rd!'),
             'presto_base_url' => Setting::get('presto_base_url', 'https://sys.prestoeat.com'),
             'presto_email' => Setting::get('presto_email', ''),
+            'google_api_key' => Setting::get('google_api_key', ''),
+            'google_search_engine_id' => Setting::get('google_search_engine_id', ''),
             'poll_interval' => Setting::get('poll_interval', 45),
             'stock_query' => Setting::get('stock_query', $this->getDefaultStockQuery()),
         ];
@@ -38,6 +40,8 @@ class SettingsController extends Controller
             'presto_base_url' => 'sometimes|url',
             'presto_email' => 'sometimes|email',
             'presto_password' => 'sometimes|string',
+            'google_api_key' => 'sometimes|string',
+            'google_search_engine_id' => 'sometimes|string',
             'poll_interval' => 'sometimes|integer|min:10|max:300',
             'stock_query' => 'sometimes|string',
         ]);

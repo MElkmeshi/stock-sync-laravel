@@ -26,6 +26,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('logs', function () {
         return Inertia::render('logs');
     })->name('logs');
+
+    Route::get('market-products', function () {
+        return Inertia::render('market-products');
+    })->name('market-products');
 });
 
 // API Routes
@@ -55,6 +59,11 @@ Route::prefix('api')->middleware('auth')->group(function () {
     Route::get('market-db/products', [App\Http\Controllers\Api\MarketDbController::class, 'getProducts']);
     Route::get('market-db/tables', [App\Http\Controllers\Api\MarketDbController::class, 'getTables']);
     Route::get('market-db/columns/{tableName}', [App\Http\Controllers\Api\MarketDbController::class, 'getColumns']);
+
+    // Market Products (with images)
+    Route::get('market-products', [App\Http\Controllers\Api\MarketProductController::class, 'index']);
+    Route::post('market-products/{id}/search-images', [App\Http\Controllers\Api\MarketProductController::class, 'searchImages']);
+    Route::put('market-products/{id}/image', [App\Http\Controllers\Api\MarketProductController::class, 'updateImage']);
 
     // Sync Events
     Route::get('sync-events', function () {

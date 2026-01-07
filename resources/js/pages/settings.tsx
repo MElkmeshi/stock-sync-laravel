@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Save, TestTube, RefreshCw, CheckCircle, XCircle, Database, Cloud } from 'lucide-react';
+import { Save, TestTube, RefreshCw, CheckCircle, XCircle, Database, Cloud, ImageIcon } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -28,6 +28,8 @@ interface Settings {
     presto_api_url: string;
     presto_email: string;
     presto_password: string;
+    google_api_key: string;
+    google_search_engine_id: string;
     sync_enabled: boolean;
 }
 
@@ -42,6 +44,8 @@ export default function Settings() {
         presto_api_url: 'https://integration.presto.app/v1',
         presto_email: '',
         presto_password: '',
+        google_api_key: '',
+        google_search_engine_id: '',
         sync_enabled: false,
     });
     const [loading, setLoading] = useState(true);
@@ -311,6 +315,68 @@ export default function Settings() {
                                 <RefreshCw className="mr-2 size-4" />
                                 Sync Catalog from Presto
                             </Button>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <ImageIcon className="size-5" />
+                                Google Image Search
+                            </CardTitle>
+                            <CardDescription>Configure Google Custom Search API for product images</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="google_api_key">API Key</Label>
+                                <Input
+                                    id="google_api_key"
+                                    type="password"
+                                    value={settings.google_api_key}
+                                    onChange={(e) => setSettings({ ...settings, google_api_key: e.target.value })}
+                                    placeholder="Your Google API Key"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="google_search_engine_id">Search Engine ID</Label>
+                                <Input
+                                    id="google_search_engine_id"
+                                    value={settings.google_search_engine_id}
+                                    onChange={(e) =>
+                                        setSettings({ ...settings, google_search_engine_id: e.target.value })
+                                    }
+                                    placeholder="Your Search Engine ID (cx)"
+                                />
+                            </div>
+                            <div className="rounded-lg bg-muted p-4">
+                                <p className="text-sm font-medium">Setup Instructions:</p>
+                                <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                                    <li>
+                                        • Get API key from{' '}
+                                        <a
+                                            href="https://console.cloud.google.com/"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary underline"
+                                        >
+                                            Google Cloud Console
+                                        </a>
+                                    </li>
+                                    <li>• Enable Custom Search API in your project</li>
+                                    <li>
+                                        • Create search engine at{' '}
+                                        <a
+                                            href="https://programmablesearchengine.google.com/"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary underline"
+                                        >
+                                            Programmable Search Engine
+                                        </a>
+                                    </li>
+                                    <li>• Free tier: 100 searches/day</li>
+                                </ul>
+                            </div>
                         </CardContent>
                     </Card>
                 </div>

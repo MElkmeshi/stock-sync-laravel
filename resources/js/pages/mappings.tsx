@@ -37,9 +37,11 @@ interface ProductMapping {
 }
 
 interface MarketProduct {
+    id: number;
     pos_product_id: string;
     product_name: string;
     stock_quantity: number;
+    image_url: string | null;
 }
 
 export default function Mappings() {
@@ -58,7 +60,7 @@ export default function Mappings() {
             const [mappingsRes, prestoRes, marketRes] = await Promise.all([
                 axios.get('/api/mappings'),
                 axios.get('/api/presto/items'),
-                axios.get('/api/market-db/products'),
+                axios.get('/api/market-products'),
             ]);
             setMappings(mappingsRes.data);
             setPrestoItems(prestoRes.data);
@@ -186,22 +188,45 @@ export default function Mappings() {
                                     unmappedMarketProducts.map((product) => (
                                         <div
                                             key={product.pos_product_id}
-                                            onClick={() => setSelectedMarketProduct(product)}
-                                            className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-colors ${
+                                            className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
                                                 selectedMarketProduct?.pos_product_id === product.pos_product_id
                                                     ? 'border-primary bg-primary/10'
                                                     : 'hover:bg-muted/50'
                                             }`}
                                         >
-                                            <div className="space-y-1">
+                                            {product.image_url ? (
+                                                <div
+                                                    className="relative size-16 shrink-0 overflow-hidden rounded-md border bg-muted"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setImageModalUrl(product.image_url);
+                                                    }}
+                                                >
+                                                    <img
+                                                        src={product.image_url}
+                                                        alt={product.product_name}
+                                                        className="size-full object-cover transition-transform hover:scale-110"
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <div className="flex size-16 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground">
+                                                    <ImageIcon className="size-6" />
+                                                </div>
+                                            )}
+                                            <div
+                                                className="flex-1 space-y-1"
+                                                onClick={() => setSelectedMarketProduct(product)}
+                                            >
                                                 <p className="text-sm font-medium">{product.product_name}</p>
                                                 <p className="text-xs text-muted-foreground">
                                                     ID: {product.pos_product_id} • Stock: {product.stock_quantity}
                                                 </p>
                                             </div>
-                                            {selectedMarketProduct?.pos_product_id === product.pos_product_id && (
-                                                <Badge>Selected</Badge>
-                                            )}
+                                            <div onClick={() => setSelectedMarketProduct(product)}>
+                                                {selectedMarketProduct?.pos_product_id === product.pos_product_id && (
+                                                    <Badge>Selected</Badge>
+                                                )}
+                                            </div>
                                         </div>
                                     ))
                                 )}
@@ -285,12 +310,29 @@ export default function Mappings() {
                         <CardContent className="pt-6">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4">
-                                    <div className="space-y-1">
-                                        <p className="text-xs text-muted-foreground">Market Product</p>
-                                        <p className="font-medium">{selectedMarketProduct.product_name}</p>
-                                        <p className="text-xs text-muted-foreground">
-                                            ID: {selectedMarketProduct.pos_product_id}
-                                        </p>
+                                    <div className="flex items-center gap-3">
+                                        {selectedMarketProduct.image_url && (
+                                            <div
+                                                className="relative size-12 shrink-0 cursor-pointer overflow-hidden rounded-md border bg-muted"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setImageModalUrl(selectedMarketProduct.image_url);
+                                                }}
+                                            >
+                                                <img
+                                                    src={selectedMarketProduct.image_url}
+                                                    alt={selectedMarketProduct.product_name}
+                                                    className="size-full object-cover"
+                                                />
+                                            </div>
+                                        )}
+                                        <div className="space-y-1">
+                                            <p className="text-xs text-muted-foreground">Market Product</p>
+                                            <p className="font-medium">{selectedMarketProduct.product_name}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                ID: {selectedMarketProduct.pos_product_id}
+                                            </p>
+                                        </div>
                                     </div>
                                     <div className="text-xl">→</div>
                                     <div className="flex items-center gap-3">
@@ -359,16 +401,33 @@ export default function Mappings() {
                                             className="flex items-center justify-between rounded-lg border p-3"
                                         >
                                             <div className="flex items-center gap-4">
-                                                <div className="space-y-1">
-                                                    <p className="text-xs text-muted-foreground">POS Product</p>
-                                                    <p className="text-sm font-medium">
-                                                        {marketProduct?.product_name || mapping.pos_product_id}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        ID: {mapping.pos_product_id}
-                                                        {marketProduct &&
-                                                            ` • Stock: ${marketProduct.stock_quantity}`}
-                                                    </p>
+                                                <div className="flex items-center gap-3">
+                                                    {marketProduct?.image_url && (
+                                                        <div
+                                                            className="relative size-12 shrink-0 cursor-pointer overflow-hidden rounded-md border bg-muted"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setImageModalUrl(marketProduct.image_url);
+                                                            }}
+                                                        >
+                                                            <img
+                                                                src={marketProduct.image_url}
+                                                                alt={marketProduct.product_name}
+                                                                className="size-full object-cover"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    <div className="space-y-1">
+                                                        <p className="text-xs text-muted-foreground">POS Product</p>
+                                                        <p className="text-sm font-medium">
+                                                            {marketProduct?.product_name || mapping.pos_product_id}
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            ID: {mapping.pos_product_id}
+                                                            {marketProduct &&
+                                                                ` • Stock: ${marketProduct.stock_quantity}`}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             <div className="text-muted-foreground">→</div>
                                             <div className="flex items-center gap-3">
@@ -395,6 +454,9 @@ export default function Mappings() {
                                                     <p className="text-xs text-muted-foreground">Presto Item</p>
                                                     <p className="text-sm font-medium">
                                                         {mapping.presto_item.name_en || mapping.presto_item.name_ar}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        ID: {mapping.presto_item_id}
                                                     </p>
                                                 </div>
                                             </div>
