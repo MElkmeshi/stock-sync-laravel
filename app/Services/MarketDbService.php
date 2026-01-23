@@ -23,10 +23,11 @@ class MarketDbService
             'port' => Setting::get('db_port', 1433),
             'database' => Setting::get('db_name', 'Market'),
             'username' => Setting::get('db_user', 'sa'),
-            'password' => Setting::get('db_password', 'MyStr0ngP@ssw0rd!'),
+            'password' => Setting::get('db_password', 'StrongPass123'),
             'charset' => 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,
+            'encrypt' => 'no',
         ];
 
         config(["database.connections.{$this->connectionName}" => $config]);
@@ -41,34 +42,39 @@ class MarketDbService
             'username' => Setting::get('db_user', 'sa'),
         ]);
 
-        try {
-            // Try using tsql command (FreeTDS) as fallback for Mac ARM
-            Log::info('Attempting tsql connection...');
-            $result = $this->executeTsql('SELECT 1 as test');
+        if ($this->hasPdoSqlsrv()) {
+            try {
+                DB::connection($this->connectionName)->getPdo();
+                Log::info('Market DB connection successful (using PDO)');
 
-            Log::info('Tsql result:', ['result' => $result]);
+                return true;
+            } catch (\Exception $e) {
+                // If ODBC driver is missing (Mac ARM), fall through to tsql
+                if (str_contains($e->getMessage(), 'ODBC Driver')) {
+                    Log::warning('PDO sqlsrv ODBC driver unavailable, trying tsql...', ['error' => $e->getMessage()]);
+                } else {
+                    Log::error('Market DB connection failed', ['error' => $e->getMessage()]);
+
+                    throw $e;
+                }
+            }
+        }
+
+        try {
+            $result = $this->executeTsql('SELECT 1 as test');
 
             if ($result && count($result) > 0) {
                 Log::info('Market DB connection successful (using FreeTDS)');
 
                 return true;
             }
-
-            Log::warning('Tsql returned empty result, trying PDO...');
-
-            // Try standard PDO connection
-            DB::connection($this->connectionName)->getPdo();
-            Log::info('Market DB connection successful (using PDO)');
-
-            return true;
         } catch (\Exception $e) {
-            Log::error('Market DB connection failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            Log::error('Market DB connection failed', ['error' => $e->getMessage()]);
 
-            throw $e; // Throw exception instead of returning false
+            throw $e;
         }
+
+        throw new \Exception('No suitable SQL Server driver available');
     }
 
     public function getStockLevels(): array
@@ -76,12 +82,18 @@ class MarketDbService
         $query = Setting::get('stock_query', $this->getDefaultStockQuery());
 
         try {
-            // Try FreeTDS first (works on Mac ARM)
-            try {
+            if ($this->hasPdoSqlsrv()) {
+                try {
+                    $results = DB::connection($this->connectionName)->select($query);
+                } catch (\Exception $pdoException) {
+                    if (str_contains($pdoException->getMessage(), 'ODBC Driver')) {
+                        $results = $this->executeTsql($query);
+                    } else {
+                        throw $pdoException;
+                    }
+                }
+            } else {
                 $results = $this->executeTsql($query);
-            } catch (\Exception $tsqlException) {
-                // Fallback to PDO if tsql fails
-                $results = DB::connection($this->connectionName)->select($query);
             }
 
             $stockLevels = [];
@@ -139,6 +151,11 @@ class MarketDbService
         }
     }
 
+    protected function hasPdoSqlsrv(): bool
+    {
+        return extension_loaded('pdo_sqlsrv') && in_array('sqlsrv', \PDO::getAvailableDrivers());
+    }
+
     /**
      * Execute SQL query using FreeTDS tsql command (fallback for Mac ARM without ODBC drivers)
      */
@@ -148,7 +165,7 @@ class MarketDbService
         $port = Setting::get('db_port', 1433);
         $database = Setting::get('db_name', 'Market');
         $username = Setting::get('db_user', 'sa');
-        $password = Setting::get('db_password', 'MyStr0ngP@ssw0rd!');
+        $password = Setting::get('db_password', 'StrongPass123');
 
         Log::debug('Executing tsql command', [
             'host' => $host,

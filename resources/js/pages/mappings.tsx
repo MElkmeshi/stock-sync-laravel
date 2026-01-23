@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Search, Trash2, Plus, RefreshCw, ImageIcon, X, Package } from 'lucide-react';
+import { Search, Trash2, Plus, RefreshCw, ImageIcon, X, Package, Loader2 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
@@ -57,8 +57,11 @@ export default function Mappings() {
     const [selectedPrestoItem, setSelectedPrestoItem] = useState<PrestoItem | null>(null);
     const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
     const [availableStockOnly, setAvailableStockOnly] = useState(false);
+    const [creatingMapping, setCreatingMapping] = useState(false);
+    const [deletingMapping, setDeletingMapping] = useState<string | null>(null);
 
     const fetchData = async () => {
+        setLoading(true);
         try {
             const [mappingsRes, prestoRes, marketRes] = await Promise.all([
                 axios.get('/api/mappings'),
@@ -80,6 +83,7 @@ export default function Mappings() {
             return;
         }
 
+        setCreatingMapping(true);
         try {
             await axios.post('/api/mappings', {
                 pos_product_id: selectedMarketProduct.pos_product_id,
@@ -87,18 +91,23 @@ export default function Mappings() {
             });
             setSelectedMarketProduct(null);
             setSelectedPrestoItem(null);
-            fetchData();
+            await fetchData();
         } catch (error) {
             console.error('Failed to create mapping:', error);
+        } finally {
+            setCreatingMapping(false);
         }
     };
 
     const deleteMapping = async (posProductId: string) => {
+        setDeletingMapping(posProductId);
         try {
             await axios.delete(`/api/mappings/${posProductId}`);
-            fetchData();
+            await fetchData();
         } catch (error) {
             console.error('Failed to delete mapping:', error);
+        } finally {
+            setDeletingMapping(null);
         }
     };
 
@@ -135,8 +144,12 @@ export default function Mappings() {
                         <h1 className="text-3xl font-bold">Product Mappings</h1>
                         <p className="text-muted-foreground">Map POS products to Presto catalog items</p>
                     </div>
-                    <Button variant="outline" size="sm" onClick={fetchData}>
-                        <RefreshCw className="mr-2 size-4" />
+                    <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+                        {loading ? (
+                            <Loader2 className="mr-2 size-4 animate-spin" />
+                        ) : (
+                            <RefreshCw className="mr-2 size-4" />
+                        )}
                         Refresh
                     </Button>
                 </div>
@@ -147,7 +160,11 @@ export default function Mappings() {
                             <CardTitle>Total Mappings</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold">{mappings.length}</div>
+                            {loading ? (
+                                <div className="h-9 w-12 animate-pulse rounded bg-muted" />
+                            ) : (
+                                <div className="text-3xl font-bold">{mappings.length}</div>
+                            )}
                         </CardContent>
                     </Card>
                     <Card>
@@ -155,7 +172,11 @@ export default function Mappings() {
                             <CardTitle>Presto Items</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold">{prestoItems.length}</div>
+                            {loading ? (
+                                <div className="h-9 w-12 animate-pulse rounded bg-muted" />
+                            ) : (
+                                <div className="text-3xl font-bold">{prestoItems.length}</div>
+                            )}
                         </CardContent>
                     </Card>
                     <Card>
@@ -163,7 +184,11 @@ export default function Mappings() {
                             <CardTitle>Market Products</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold">{marketProducts.length}</div>
+                            {loading ? (
+                                <div className="h-9 w-12 animate-pulse rounded bg-muted" />
+                            ) : (
+                                <div className="text-3xl font-bold">{marketProducts.length}</div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
@@ -201,7 +226,17 @@ export default function Mappings() {
                         </CardHeader>
                         <CardContent>
                             <div className="max-h-[500px] space-y-2 overflow-y-auto">
-                                {unmappedMarketProducts.length === 0 ? (
+                                {loading ? (
+                                    Array.from({ length: 5 }).map((_, i) => (
+                                        <div key={i} className="flex animate-pulse items-center gap-3 rounded-lg border p-3">
+                                            <div className="size-16 shrink-0 rounded-md bg-muted" />
+                                            <div className="flex-1 space-y-2">
+                                                <div className="h-4 w-3/4 rounded bg-muted" />
+                                                <div className="h-3 w-1/2 rounded bg-muted" />
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : unmappedMarketProducts.length === 0 ? (
                                     <p className="text-sm text-muted-foreground">
                                         {searchTerm ? 'No products found' : 'All products are mapped'}
                                     </p>
@@ -271,7 +306,18 @@ export default function Mappings() {
                         </CardHeader>
                         <CardContent>
                             <div className="max-h-[500px] space-y-2 overflow-y-auto">
-                                {filteredPrestoItems.length === 0 ? (
+                                {loading ? (
+                                    Array.from({ length: 5 }).map((_, i) => (
+                                        <div key={i} className="flex animate-pulse items-center gap-3 rounded-lg border p-3">
+                                            <div className="size-16 shrink-0 rounded-md bg-muted" />
+                                            <div className="flex-1 space-y-2">
+                                                <div className="h-4 w-3/4 rounded bg-muted" />
+                                                <div className="h-3 w-1/2 rounded bg-muted" />
+                                            </div>
+                                            <div className="h-5 w-16 rounded-full bg-muted" />
+                                        </div>
+                                    ))
+                                ) : filteredPrestoItems.length === 0 ? (
                                     <p className="text-sm text-muted-foreground">No items found</p>
                                 ) : (
                                     filteredPrestoItems.map((item) => (
@@ -392,9 +438,13 @@ export default function Mappings() {
                                     >
                                         Cancel
                                     </Button>
-                                    <Button size="sm" onClick={createMapping}>
-                                        <Plus className="mr-2 size-4" />
-                                        Create Mapping
+                                    <Button size="sm" onClick={createMapping} disabled={creatingMapping}>
+                                        {creatingMapping ? (
+                                            <Loader2 className="mr-2 size-4 animate-spin" />
+                                        ) : (
+                                            <Plus className="mr-2 size-4" />
+                                        )}
+                                        {creatingMapping ? 'Creating...' : 'Create Mapping'}
                                     </Button>
                                 </div>
                             </div>
@@ -486,8 +536,13 @@ export default function Mappings() {
                                             variant="destructive"
                                             size="sm"
                                             onClick={() => deleteMapping(mapping.pos_product_id)}
+                                            disabled={deletingMapping === mapping.pos_product_id}
                                         >
-                                            <Trash2 className="size-4" />
+                                            {deletingMapping === mapping.pos_product_id ? (
+                                                <Loader2 className="size-4 animate-spin" />
+                                            ) : (
+                                                <Trash2 className="size-4" />
+                                            )}
                                         </Button>
                                     </div>
                                 );

@@ -5,7 +5,18 @@
       "mcp__laravel-boost__list-available-env-vars",
       "mcp__herd__get_site_information",
       "Bash(vendor/bin/pint:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(ssh mandobek \"ls ~ && uname -a && which docker && which nginx\")",
+      "Bash(ssh mandobek:*)",
+      "Bash(ls:*)",
+      "Bash(rsync:*)",
+      "Bash(scp:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker inspect:*)",
+      "Bash(python3:*)",
+      "Bash(docker start:*)",
+      "Bash(docker exec:*)",
+      "mcp__laravel-boost__search-docs"
     ]
   },
   "enableAllProjectMcpServers": true,
