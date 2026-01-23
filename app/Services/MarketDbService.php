@@ -50,6 +50,7 @@ class MarketDbService
 
             if ($result && count($result) > 0) {
                 Log::info('Market DB connection successful (using FreeTDS)');
+
                 return true;
             }
 
@@ -160,9 +161,15 @@ class MarketDbService
         // Escape query for heredoc
         $query = str_replace("'", "''", $query);
 
-        // Build tsql command with UTF-8 locale
+        // Build tsql command with UTF-8 locale (use full path for Herd compatibility)
+        $tsqlPath = '/opt/homebrew/bin/tsql';
+        if (! file_exists($tsqlPath)) {
+            $tsqlPath = 'tsql'; // Fallback to PATH lookup
+        }
+
         $cmd = sprintf(
-            "LANG=en_US.UTF-8 tsql -H %s -p %d -U %s -P %s -D %s 2>&1 <<'EOF'\n%s\nGO\nEXIT\nEOF\n",
+            "LANG=en_US.UTF-8 %s -H %s -p %d -U %s -P %s -D %s 2>&1 <<'EOF'\n%s\nGO\nEXIT\nEOF\n",
+            $tsqlPath,
             escapeshellarg($host),
             $port,
             escapeshellarg($username),

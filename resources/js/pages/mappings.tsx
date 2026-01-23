@@ -8,7 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Search, Trash2, Plus, RefreshCw, ImageIcon, X } from 'lucide-react';
+import { Search, Trash2, Plus, RefreshCw, ImageIcon, X, Package } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -54,6 +56,7 @@ export default function Mappings() {
     const [selectedMarketProduct, setSelectedMarketProduct] = useState<MarketProduct | null>(null);
     const [selectedPrestoItem, setSelectedPrestoItem] = useState<PrestoItem | null>(null);
     const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
+    const [availableStockOnly, setAvailableStockOnly] = useState(false);
 
     const fetchData = async () => {
         try {
@@ -103,11 +106,13 @@ export default function Mappings() {
         fetchData();
     }, []);
 
-    const filteredMarketProducts = marketProducts.filter(
-        (product) =>
+    const filteredMarketProducts = marketProducts.filter((product) => {
+        const matchesSearch =
             product.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            product.pos_product_id.toLowerCase().includes(searchTerm.toLowerCase()),
-    );
+            product.pos_product_id.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesStock = !availableStockOnly || product.stock_quantity > 0;
+        return matchesSearch && matchesStock;
+    });
 
     const filteredPrestoItems = prestoItems.filter((item) => {
         const name = item.name_en || item.name_ar || '';
@@ -168,14 +173,30 @@ export default function Mappings() {
                         <CardHeader>
                             <CardTitle>Market Database Products</CardTitle>
                             <CardDescription>Available products from your POS system</CardDescription>
-                            <div className="relative mt-4">
-                                <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search products..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-8"
-                                />
+                            <div className="mt-4 space-y-3">
+                                <div className="relative">
+                                    <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search products..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="pl-8"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        id="available-stock"
+                                        checked={availableStockOnly}
+                                        onCheckedChange={(checked) => setAvailableStockOnly(checked === true)}
+                                    />
+                                    <Label
+                                        htmlFor="available-stock"
+                                        className="flex cursor-pointer items-center gap-1.5 text-sm font-medium"
+                                    >
+                                        <Package className="size-4" />
+                                        Available stock only
+                                    </Label>
+                                </div>
                             </div>
                         </CardHeader>
                         <CardContent>

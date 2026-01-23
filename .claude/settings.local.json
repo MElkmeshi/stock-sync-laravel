@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__laravel-boost__get-config",
+      "mcp__laravel-boost__list-available-env-vars",
+      "mcp__herd__get_site_information",
+      "Bash(vendor/bin/pint:*)",
+      "Bash(npm run build:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "laravel-boost",
+    "herd"
+  ]
+}

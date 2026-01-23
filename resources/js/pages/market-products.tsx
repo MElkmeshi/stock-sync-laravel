@@ -9,7 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Search, ImageIcon, RefreshCw, Loader2, X } from 'lucide-react';
+import { Search, ImageIcon, RefreshCw, Loader2, X, Package } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -45,6 +47,7 @@ export default function MarketProducts() {
     const [imageModalOpen, setImageModalOpen] = useState(false);
     const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [availableStockOnly, setAvailableStockOnly] = useState(false);
 
     const fetchProducts = async () => {
         try {
@@ -126,11 +129,13 @@ export default function MarketProducts() {
         fetchProducts();
     }, []);
 
-    const filteredProducts = products.filter(
-        (product) =>
+    const filteredProducts = products.filter((product) => {
+        const matchesSearch =
             product.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            product.pos_product_id.toLowerCase().includes(searchTerm.toLowerCase()),
-    );
+            product.pos_product_id.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesStock = !availableStockOnly || product.stock_quantity > 0;
+        return matchesSearch && matchesStock;
+    });
 
     const productsWithImages = filteredProducts.filter((p) => p.image_url);
     const productsWithoutImages = filteredProducts.filter((p) => !p.image_url);
@@ -183,14 +188,30 @@ export default function MarketProducts() {
                     <CardHeader>
                         <CardTitle>All Products</CardTitle>
                         <CardDescription>Click on a product to search and add images</CardDescription>
-                        <div className="relative mt-4">
-                            <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search products..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-8"
-                            />
+                        <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search products..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="pl-8"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id="available-stock"
+                                    checked={availableStockOnly}
+                                    onCheckedChange={(checked) => setAvailableStockOnly(checked === true)}
+                                />
+                                <Label
+                                    htmlFor="available-stock"
+                                    className="flex cursor-pointer items-center gap-1.5 text-sm font-medium"
+                                >
+                                    <Package className="size-4" />
+                                    Available stock only
+                                </Label>
+                            </div>
                         </div>
                     </CardHeader>
                     <CardContent>
