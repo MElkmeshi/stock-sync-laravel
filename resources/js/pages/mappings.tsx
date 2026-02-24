@@ -56,7 +56,7 @@ export default function Mappings() {
     const [prestoSearchTerm, setPrestoSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
     const [selectedMarketProduct, setSelectedMarketProduct] = useState<MarketProduct | null>(null);
-    const [selectedPrestoItem, setSelectedPrestoItem] = useState<PrestoItem | null>(null);
+    const [selectedPrestoItems, setSelectedPrestoItems] = useState<PrestoItem[]>([]);
     const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
     const [availableStockOnly, setAvailableStockOnly] = useState(false);
     const [stockSort, setStockSort] = useState<'none' | 'high-to-low' | 'low-to-high'>('none');
@@ -82,24 +82,38 @@ export default function Mappings() {
     };
 
     const createMapping = async () => {
-        if (!selectedMarketProduct || !selectedPrestoItem) {
+        if (!selectedMarketProduct || selectedPrestoItems.length === 0) {
             return;
         }
 
         setCreatingMapping(true);
         try {
-            await axios.post('/api/mappings', {
-                pos_product_id: selectedMarketProduct.pos_product_id,
-                presto_item_id: selectedPrestoItem.id,
-            });
+            await Promise.all(
+                selectedPrestoItems.map((item) =>
+                    axios.post('/api/mappings', {
+                        pos_product_id: selectedMarketProduct.pos_product_id,
+                        presto_item_id: item.id,
+                    }),
+                ),
+            );
             setSelectedMarketProduct(null);
-            setSelectedPrestoItem(null);
+            setSelectedPrestoItems([]);
             await fetchData();
         } catch (error) {
             console.error('Failed to create mapping:', error);
         } finally {
             setCreatingMapping(false);
         }
+    };
+
+    const togglePrestoItem = (item: PrestoItem) => {
+        setSelectedPrestoItems((prev) => {
+            const exists = prev.some((i) => i.id === item.id);
+            if (exists) {
+                return prev.filter((i) => i.id !== item.id);
+            }
+            return [...prev, item];
+        });
     };
 
     const deleteMapping = async (mappingId: number) => {
@@ -145,6 +159,16 @@ export default function Mappings() {
         acc[m.pos_product_id] = (acc[m.pos_product_id] || 0) + 1;
         return acc;
     }, {});
+
+    const alreadyMappedPrestoIds = selectedMarketProduct
+        ? new Set(
+              mappings
+                  .filter((m) => m.pos_product_id === selectedMarketProduct.pos_product_id)
+                  .map((m) => m.presto_item_id),
+          )
+        : new Set<number>();
+
+    const selectedPrestoIds = new Set(selectedPrestoItems.map((i) => i.id));
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -295,14 +319,20 @@ export default function Mappings() {
                                             )}
                                             <div
                                                 className="flex-1 space-y-1"
-                                                onClick={() => setSelectedMarketProduct(product)}
+                                                onClick={() => {
+                                                    setSelectedMarketProduct(product);
+                                                    setSelectedPrestoItems([]);
+                                                }}
                                             >
                                                 <p className="text-sm font-medium">{product.product_name}</p>
                                                 <p className="text-xs text-muted-foreground">
                                                     ID: {product.pos_product_id} • Stock: {product.stock_quantity}
                                                 </p>
                                             </div>
-                                            <div className="flex items-center gap-2" onClick={() => setSelectedMarketProduct(product)}>
+                                            <div className="flex items-center gap-2" onClick={() => {
+                                                setSelectedMarketProduct(product);
+                                                setSelectedPrestoItems([]);
+                                            }}>
                                                 {mappingCountByPosId[product.pos_product_id] > 0 && (
                                                     <Badge variant="secondary">
                                                         {mappingCountByPosId[product.pos_product_id]} mapped
@@ -321,8 +351,17 @@ export default function Mappings() {
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Presto Catalog Items</CardTitle>
-                            <CardDescription>Items from your Presto menu</CardDescription>
+                            <CardTitle className="flex items-center gap-2">
+                                Presto Catalog Items
+                                {selectedPrestoItems.length > 0 && (
+                                    <Badge>{selectedPrestoItems.length} selected</Badge>
+                                )}
+                            </CardTitle>
+                            <CardDescription>
+                                {selectedMarketProduct
+                                    ? 'Click items to select multiple Presto items'
+                                    : 'Select a Market product first, then choose Presto items'}
+                            </CardDescription>
                             <div className="relative mt-4">
                                 <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
                                 <Input
@@ -349,59 +388,64 @@ export default function Mappings() {
                                 ) : filteredPrestoItems.length === 0 ? (
                                     <p className="text-sm text-muted-foreground">No items found</p>
                                 ) : (
-                                    filteredPrestoItems.map((item) => (
-                                        <div
-                                            key={item.id}
-                                            className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
-                                                selectedPrestoItem?.id === item.id
-                                                    ? 'border-primary bg-primary/10'
-                                                    : 'hover:bg-muted/50'
-                                            }`}
-                                        >
-                                            {item.image_url ? (
-                                                <div
-                                                    className="relative size-16 shrink-0 overflow-hidden rounded-md border bg-muted"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setImageModalUrl(item.image_url);
-                                                    }}
-                                                >
-                                                    <img
-                                                        src={item.image_url}
-                                                        alt={item.name_en || item.name_ar || ''}
-                                                        className="size-full object-cover transition-transform hover:scale-110"
-                                                    />
-                                                </div>
-                                            ) : (
-                                                <div className="flex size-16 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground">
-                                                    <ImageIcon className="size-6" />
-                                                </div>
-                                            )}
+                                    filteredPrestoItems.map((item) => {
+                                        const isSelected = selectedPrestoIds.has(item.id);
+                                        const isAlreadyMapped = alreadyMappedPrestoIds.has(item.id);
+                                        return (
                                             <div
-                                                className="flex-1 space-y-1"
-                                                onClick={() => setSelectedPrestoItem(item)}
+                                                key={item.id}
+                                                className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+                                                    isAlreadyMapped
+                                                        ? 'border-muted bg-muted/30 opacity-60'
+                                                        : isSelected
+                                                          ? 'border-primary bg-primary/10'
+                                                          : 'hover:bg-muted/50'
+                                                }`}
+                                                onClick={() => !isAlreadyMapped && togglePrestoItem(item)}
                                             >
-                                                <p className="text-sm font-medium">{item.name_en || item.name_ar}</p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {item.vendor_reference_id && `Ref: ${item.vendor_reference_id} • `}
-                                                    ${item.price}
-                                                </p>
+                                                {item.image_url ? (
+                                                    <div
+                                                        className="relative size-16 shrink-0 overflow-hidden rounded-md border bg-muted"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setImageModalUrl(item.image_url);
+                                                        }}
+                                                    >
+                                                        <img
+                                                            src={item.image_url}
+                                                            alt={item.name_en || item.name_ar || ''}
+                                                            className="size-full object-cover transition-transform hover:scale-110"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex size-16 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground">
+                                                        <ImageIcon className="size-6" />
+                                                    </div>
+                                                )}
+                                                <div className="flex-1 space-y-1">
+                                                    <p className="text-sm font-medium">{item.name_en || item.name_ar}</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {item.vendor_reference_id && `Ref: ${item.vendor_reference_id} • `}
+                                                        ${item.price}
+                                                    </p>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    {isAlreadyMapped && <Badge variant="outline">Already Mapped</Badge>}
+                                                    {isSelected && <Badge>Selected</Badge>}
+                                                    <Badge variant={item.is_available ? 'default' : 'secondary'}>
+                                                        {item.is_available ? 'Available' : 'Unavailable'}
+                                                    </Badge>
+                                                </div>
                                             </div>
-                                            <div className="flex gap-2" onClick={() => setSelectedPrestoItem(item)}>
-                                                {selectedPrestoItem?.id === item.id && <Badge>Selected</Badge>}
-                                                <Badge variant={item.is_available ? 'default' : 'secondary'}>
-                                                    {item.is_available ? 'Available' : 'Unavailable'}
-                                                </Badge>
-                                            </div>
-                                        </div>
-                                    ))
+                                        );
+                                    })
                                 )}
                             </div>
                         </CardContent>
                     </Card>
                 </div>
 
-                {selectedMarketProduct && selectedPrestoItem && (
+                {selectedMarketProduct && selectedPrestoItems.length > 0 && (
                     <Card className="border-primary bg-primary/5">
                         <CardContent className="pt-6">
                             <div className="flex items-center justify-between">
@@ -431,28 +475,27 @@ export default function Mappings() {
                                         </div>
                                     </div>
                                     <div className="text-xl">→</div>
-                                    <div className="flex items-center gap-3">
-                                        {selectedPrestoItem.image_url && (
-                                            <div
-                                                className="relative size-12 shrink-0 cursor-pointer overflow-hidden rounded-md border bg-muted"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setImageModalUrl(selectedPrestoItem.image_url);
-                                                }}
-                                            >
-                                                <img
-                                                    src={selectedPrestoItem.image_url}
-                                                    alt={selectedPrestoItem.name_en || selectedPrestoItem.name_ar || ''}
-                                                    className="size-full object-cover"
-                                                />
-                                            </div>
-                                        )}
-                                        <div className="space-y-1">
-                                            <p className="text-xs text-muted-foreground">Presto Item</p>
-                                            <p className="font-medium">
-                                                {selectedPrestoItem.name_en || selectedPrestoItem.name_ar}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">ID: {selectedPrestoItem.id}</p>
+                                    <div className="space-y-2">
+                                        <p className="text-xs text-muted-foreground">
+                                            {selectedPrestoItems.length} Presto Item{selectedPrestoItems.length > 1 ? 's' : ''}
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {selectedPrestoItems.map((item) => (
+                                                <div
+                                                    key={item.id}
+                                                    className="flex items-center gap-2 rounded-md border bg-background px-2 py-1"
+                                                >
+                                                    <span className="text-sm font-medium">
+                                                        {item.name_en || item.name_ar}
+                                                    </span>
+                                                    <button
+                                                        className="text-muted-foreground hover:text-foreground"
+                                                        onClick={() => togglePrestoItem(item)}
+                                                    >
+                                                        <X className="size-3" />
+                                                    </button>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 </div>
@@ -462,7 +505,7 @@ export default function Mappings() {
                                         size="sm"
                                         onClick={() => {
                                             setSelectedMarketProduct(null);
-                                            setSelectedPrestoItem(null);
+                                            setSelectedPrestoItems([]);
                                         }}
                                     >
                                         Cancel
@@ -473,7 +516,7 @@ export default function Mappings() {
                                         ) : (
                                             <Plus className="mr-2 size-4" />
                                         )}
-                                        {creatingMapping ? 'Creating...' : 'Create Mapping'}
+                                        {creatingMapping ? 'Creating...' : `Create ${selectedPrestoItems.length} Mapping${selectedPrestoItems.length > 1 ? 's' : ''}`}
                                     </Button>
                                 </div>
                             </div>
