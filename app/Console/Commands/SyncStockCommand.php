@@ -18,22 +18,25 @@ class SyncStockCommand extends Command
     protected $description = 'Sync stock levels from Market DB to Presto';
 
     protected MarketDbService $marketDb;
+
     protected PrestoApiService $prestoApi;
 
     public function handle(): int
     {
-        $this->marketDb = new MarketDbService();
-        $this->prestoApi = new PrestoApiService();
+        $this->marketDb = new MarketDbService;
+        $this->prestoApi = new PrestoApiService;
 
         $this->info('Starting stock sync...');
 
-        if (!$this->prestoApi->isAuthenticated()) {
+        if (! $this->prestoApi->isAuthenticated()) {
             $this->error('Not authenticated with Presto API');
+
             return Command::FAILURE;
         }
 
-        if (!$this->marketDb->testConnection()) {
+        if (! $this->marketDb->testConnection()) {
             $this->error('Cannot connect to Market database');
+
             return Command::FAILURE;
         }
 
@@ -56,27 +59,30 @@ class SyncStockCommand extends Command
     protected function runOnce(): int
     {
         try {
-            $this->info('[' . now()->format('Y-m-d H:i:s') . '] Fetching stock levels...');
+            $this->info('['.now()->format('Y-m-d H:i:s').'] Fetching stock levels...');
 
             $stockLevels = $this->marketDb->getStockLevels();
-            $this->info('Found ' . count($stockLevels) . ' products in Market DB');
+            $this->info('Found '.count($stockLevels).' products in Market DB');
 
             $changes = $this->detectChanges($stockLevels);
 
             if (empty($changes)) {
                 $this->info('No changes detected');
+
                 return Command::SUCCESS;
             }
 
-            $this->info('Detected ' . count($changes) . ' changes');
+            $this->info('Detected '.count($changes).' changes');
 
             $this->syncChanges($changes);
 
             $this->info('Sync completed successfully');
+
             return Command::SUCCESS;
         } catch (\Exception $e) {
-            $this->error('Sync failed: ' . $e->getMessage());
-            Log::error('Sync failed: ' . $e->getMessage());
+            $this->error('Sync failed: '.$e->getMessage());
+            Log::error('Sync failed: '.$e->getMessage());
+
             return Command::FAILURE;
         }
     }
@@ -84,41 +90,42 @@ class SyncStockCommand extends Command
     protected function detectChanges(array $stockLevels): array
     {
         $changes = [];
-        $mappings = ProductMapping::with('prestoItem')->get()->keyBy('pos_product_id');
+        $mappings = ProductMapping::with('prestoItem')->get()->groupBy('pos_product_id');
 
         foreach ($stockLevels as $stock) {
             $posId = $stock['pos_product_id'];
 
-            if (!isset($mappings[$posId])) {
+            if (! isset($mappings[$posId])) {
                 continue; // Not mapped
             }
 
-            $mapping = $mappings[$posId];
             $quantity = $stock['stock_quantity'];
             $isAvailable = $quantity > 0;
 
-            // Get cached state
-            $cacheKey = "stock_state_{$posId}";
-            $cachedState = Cache::get($cacheKey);
+            foreach ($mappings[$posId] as $mapping) {
+                // Get cached state per mapping (pos + presto item pair)
+                $cacheKey = "stock_state_{$posId}_{$mapping->presto_item_id}";
+                $cachedState = Cache::get($cacheKey);
 
-            // Only sync if availability changed
-            if ($cachedState === null || $cachedState['is_available'] !== $isAvailable) {
-                $changes[] = [
-                    'pos_product_id' => $posId,
-                    'product_name' => $stock['product_name'],
-                    'vendor_reference_id' => $mapping->prestoItem->vendor_reference_id
-                        ?? $mapping->prestoItem->presto_id,
-                    'stock_quantity' => $quantity,
-                    'is_available' => $isAvailable,
-                    'action' => $isAvailable ? SyncEvent::ACTION_ENABLE : SyncEvent::ACTION_DISABLE,
-                ];
+                // Only sync if availability changed
+                if ($cachedState === null || $cachedState['is_available'] !== $isAvailable) {
+                    $changes[] = [
+                        'pos_product_id' => $posId,
+                        'product_name' => $stock['product_name'],
+                        'vendor_reference_id' => $mapping->prestoItem->vendor_reference_id
+                            ?? $mapping->prestoItem->presto_id,
+                        'stock_quantity' => $quantity,
+                        'is_available' => $isAvailable,
+                        'action' => $isAvailable ? SyncEvent::ACTION_ENABLE : SyncEvent::ACTION_DISABLE,
+                    ];
 
-                // Update cache
-                Cache::forever($cacheKey, [
-                    'is_available' => $isAvailable,
-                    'stock_quantity' => $quantity,
-                    'last_updated' => now()->toIso8601String(),
-                ]);
+                    // Update cache
+                    Cache::forever($cacheKey, [
+                        'is_available' => $isAvailable,
+                        'stock_quantity' => $quantity,
+                        'last_updated' => now()->toIso8601String(),
+                    ]);
+                }
             }
         }
 
@@ -151,7 +158,7 @@ class SyncStockCommand extends Command
         }
 
         // Batch update Presto
-        if (!empty($toUpdate)) {
+        if (! empty($toUpdate)) {
             try {
                 $this->prestoApi->updateItemAvailability($toUpdate);
 
@@ -162,7 +169,7 @@ class SyncStockCommand extends Command
                     ]);
                 }
 
-                $this->info('Successfully updated ' . count($toUpdate) . ' items in Presto');
+                $this->info('Successfully updated '.count($toUpdate).' items in Presto');
             } catch (\Exception $e) {
                 // Mark all as failed
                 foreach ($toUpdate as $item) {

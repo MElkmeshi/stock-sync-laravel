@@ -52,7 +52,7 @@ Route::prefix('api')->middleware('auth')->group(function () {
     // Product Mappings
     Route::get('mappings', [App\Http\Controllers\Api\MappingsController::class, 'index']);
     Route::post('mappings', [App\Http\Controllers\Api\MappingsController::class, 'store']);
-    Route::delete('mappings/{posProductId}', [App\Http\Controllers\Api\MappingsController::class, 'destroy']);
+    Route::delete('mappings/{id}', [App\Http\Controllers\Api\MappingsController::class, 'destroy']);
     Route::get('mappings/stats', [App\Http\Controllers\Api\MappingsController::class, 'stats']);
 
     // Market DB

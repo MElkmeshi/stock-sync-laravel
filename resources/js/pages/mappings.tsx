@@ -61,7 +61,7 @@ export default function Mappings() {
     const [availableStockOnly, setAvailableStockOnly] = useState(false);
     const [stockSort, setStockSort] = useState<'none' | 'high-to-low' | 'low-to-high'>('none');
     const [creatingMapping, setCreatingMapping] = useState(false);
-    const [deletingMapping, setDeletingMapping] = useState<string | null>(null);
+    const [deletingMapping, setDeletingMapping] = useState<number | null>(null);
 
     const fetchData = async () => {
         setLoading(true);
@@ -102,10 +102,10 @@ export default function Mappings() {
         }
     };
 
-    const deleteMapping = async (posProductId: string) => {
-        setDeletingMapping(posProductId);
+    const deleteMapping = async (mappingId: number) => {
+        setDeletingMapping(mappingId);
         try {
-            await axios.delete(`/api/mappings/${posProductId}`);
+            await axios.delete(`/api/mappings/${mappingId}`);
             await fetchData();
         } catch (error) {
             console.error('Failed to delete mapping:', error);
@@ -141,8 +141,10 @@ export default function Mappings() {
         );
     });
 
-    const mappedPosIds = new Set(mappings.map((m) => m.pos_product_id));
-    const unmappedMarketProducts = filteredMarketProducts.filter((p) => !mappedPosIds.has(p.pos_product_id));
+    const mappingCountByPosId = mappings.reduce<Record<string, number>>((acc, m) => {
+        acc[m.pos_product_id] = (acc[m.pos_product_id] || 0) + 1;
+        return acc;
+    }, {});
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -258,12 +260,12 @@ export default function Mappings() {
                                             </div>
                                         </div>
                                     ))
-                                ) : unmappedMarketProducts.length === 0 ? (
+                                ) : filteredMarketProducts.length === 0 ? (
                                     <p className="text-sm text-muted-foreground">
-                                        {searchTerm ? 'No products found' : 'All products are mapped'}
+                                        {searchTerm ? 'No products found' : 'No products available'}
                                     </p>
                                 ) : (
-                                    unmappedMarketProducts.map((product) => (
+                                    filteredMarketProducts.map((product) => (
                                         <div
                                             key={product.pos_product_id}
                                             className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
@@ -300,7 +302,12 @@ export default function Mappings() {
                                                     ID: {product.pos_product_id} • Stock: {product.stock_quantity}
                                                 </p>
                                             </div>
-                                            <div onClick={() => setSelectedMarketProduct(product)}>
+                                            <div className="flex items-center gap-2" onClick={() => setSelectedMarketProduct(product)}>
+                                                {mappingCountByPosId[product.pos_product_id] > 0 && (
+                                                    <Badge variant="secondary">
+                                                        {mappingCountByPosId[product.pos_product_id]} mapped
+                                                    </Badge>
+                                                )}
                                                 {selectedMarketProduct?.pos_product_id === product.pos_product_id && (
                                                     <Badge>Selected</Badge>
                                                 )}
@@ -557,10 +564,10 @@ export default function Mappings() {
                                         <Button
                                             variant="destructive"
                                             size="sm"
-                                            onClick={() => deleteMapping(mapping.pos_product_id)}
-                                            disabled={deletingMapping === mapping.pos_product_id}
+                                            onClick={() => deleteMapping(mapping.id)}
+                                            disabled={deletingMapping === mapping.id}
                                         >
-                                            {deletingMapping === mapping.pos_product_id ? (
+                                            {deletingMapping === mapping.id ? (
                                                 <Loader2 className="size-4 animate-spin" />
                                             ) : (
                                                 <Trash2 className="size-4" />

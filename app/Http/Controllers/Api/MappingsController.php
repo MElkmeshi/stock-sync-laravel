@@ -20,8 +20,13 @@ class MappingsController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'pos_product_id' => 'required|string|unique:product_mappings,pos_product_id',
-            'presto_item_id' => 'required|exists:presto_items,id',
+            'pos_product_id' => 'required|string',
+            'presto_item_id' => [
+                'required',
+                'exists:presto_items,id',
+                \Illuminate\Validation\Rule::unique('product_mappings')
+                    ->where('pos_product_id', $request->pos_product_id),
+            ],
         ]);
 
         $mapping = ProductMapping::create($validated);
@@ -33,11 +38,11 @@ class MappingsController extends Controller
         ], 201);
     }
 
-    public function destroy(string $posProductId): JsonResponse
+    public function destroy(int $id): JsonResponse
     {
-        $mapping = ProductMapping::where('pos_product_id', $posProductId)->first();
+        $mapping = ProductMapping::find($id);
 
-        if (!$mapping) {
+        if (! $mapping) {
             return response()->json([
                 'success' => false,
                 'message' => 'Mapping not found',
