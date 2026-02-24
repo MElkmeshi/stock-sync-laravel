@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Search, Trash2, Plus, RefreshCw, ImageIcon, X, Package, Loader2 } from 'lucide-react';
+import { Search, Trash2, Plus, RefreshCw, ImageIcon, X, Package, Loader2, ArrowUpDown } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -29,6 +30,7 @@ interface PrestoItem {
     stock: number;
     is_active: boolean;
     is_available: boolean;
+    image_url: string | null;
 }
 
 interface ProductMapping {
@@ -57,6 +59,7 @@ export default function Mappings() {
     const [selectedPrestoItem, setSelectedPrestoItem] = useState<PrestoItem | null>(null);
     const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
     const [availableStockOnly, setAvailableStockOnly] = useState(false);
+    const [stockSort, setStockSort] = useState<'none' | 'high-to-low' | 'low-to-high'>('none');
     const [creatingMapping, setCreatingMapping] = useState(false);
     const [deletingMapping, setDeletingMapping] = useState<string | null>(null);
 
@@ -115,13 +118,19 @@ export default function Mappings() {
         fetchData();
     }, []);
 
-    const filteredMarketProducts = marketProducts.filter((product) => {
-        const matchesSearch =
-            product.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            product.pos_product_id.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesStock = !availableStockOnly || product.stock_quantity > 0;
-        return matchesSearch && matchesStock;
-    });
+    const filteredMarketProducts = marketProducts
+        .filter((product) => {
+            const matchesSearch =
+                product.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                product.pos_product_id.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesStock = !availableStockOnly || product.stock_quantity > 0;
+            return matchesSearch && matchesStock;
+        })
+        .sort((a, b) => {
+            if (stockSort === 'high-to-low') return b.stock_quantity - a.stock_quantity;
+            if (stockSort === 'low-to-high') return a.stock_quantity - b.stock_quantity;
+            return 0;
+        });
 
     const filteredPrestoItems = prestoItems.filter((item) => {
         const name = item.name_en || item.name_ar || '';
@@ -208,19 +217,32 @@ export default function Mappings() {
                                         className="pl-8"
                                     />
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <Checkbox
-                                        id="available-stock"
-                                        checked={availableStockOnly}
-                                        onCheckedChange={(checked) => setAvailableStockOnly(checked === true)}
-                                    />
-                                    <Label
-                                        htmlFor="available-stock"
-                                        className="flex cursor-pointer items-center gap-1.5 text-sm font-medium"
-                                    >
-                                        <Package className="size-4" />
-                                        Available stock only
-                                    </Label>
+                                <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-2">
+                                        <Checkbox
+                                            id="available-stock"
+                                            checked={availableStockOnly}
+                                            onCheckedChange={(checked) => setAvailableStockOnly(checked === true)}
+                                        />
+                                        <Label
+                                            htmlFor="available-stock"
+                                            className="flex cursor-pointer items-center gap-1.5 text-sm font-medium"
+                                        >
+                                            <Package className="size-4" />
+                                            Available stock only
+                                        </Label>
+                                    </div>
+                                    <Select value={stockSort} onValueChange={(value) => setStockSort(value as 'none' | 'high-to-low' | 'low-to-high')}>
+                                        <SelectTrigger className="w-[160px]">
+                                            <ArrowUpDown className="size-4" />
+                                            <SelectValue placeholder="Sort by stock" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">Default</SelectItem>
+                                            <SelectItem value="high-to-low">Stock: High to Low</SelectItem>
+                                            <SelectItem value="low-to-high">Stock: Low to High</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
                         </CardHeader>
